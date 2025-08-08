@@ -3,13 +3,12 @@ package org.acme.hangman;
 import io.quarkus.logging.Log;
 import io.quarkus.runtime.Startup;
 import jakarta.enterprise.context.ApplicationScoped;
-
+import java.util.Random;
 import java.io.File;
 import java.util.*;
 
 @ApplicationScoped
 public class Hangman {
-
     private static final String LEADERBOARD_FILE_NAME = "leaderboard.csv";
     private static String[][] wordList = {
             {"baum","stein","hund","eule","hund"},
@@ -28,14 +27,11 @@ public class Hangman {
     public void init() {
         Log.info("Init");
         initializeLeaderbord(5);
-        /*while (true) {
-            startGame();
-            chooseDifficultyMode(scan);
-            scanHowManyFailedTriesMax(scan);
-            chooseRandomWord();
-            checkIfGameWonOrLost(scan);
-        }
-        */
+        startGame();
+    }
+
+    public boolean isGameStarted() {
+        return (selectedWordIndex != -1);
     }
 
 
@@ -58,7 +54,7 @@ public class Hangman {
         }
     }
 
-    private static void startGame () {
+    public static void startGame () {
         selectedDifficulty = 0;
         selectedWordIndex = -1;
         targetCharacters = new HashSet<>();
@@ -67,9 +63,11 @@ public class Hangman {
         triedLetters = new HashSet<>();
     }
 
-    private static void chooseRandomWord() {
+    public static void chooseRandomWord() {
         Random random = new Random();
         selectedWordIndex = random.nextInt(wordList[selectedDifficulty].length);
+        triedLetters = new HashSet<>();
+        failedTries = 0;
         char[] selectedWordArray = returnTargetWord().toCharArray();
         for (int i = 0; i < selectedWordArray.length; i++) {
             targetCharacters.add(selectedWordArray[i]);
@@ -77,38 +75,28 @@ public class Hangman {
 
     }
 
-    private static void chooseDifficultyMode(Scanner scan) {
-        System.out.println("Bitte gib einen Schwierigkeitsgrad ein! 1 für einfach, 2 für medium, 3 für schwer.");
-        selectedDifficulty = scanNextUserNumber(scan, 1, wordList.length) - 1;
+    public static void chooseDifficultyMode(int difficulty) {
+        selectedDifficulty = difficulty - 1;
+        System.out.println("Difficulty set to: " + difficulty);
     }
 
-    private static void scanHowManyFailedTriesMax(Scanner scan) {
-        System.out.println("Versuche mein Wort zu erraten. Davor gib ein, wie viel Fehler du machen darfst (Maximal 10)");
-        allowedTries = scanNextUserNumber(scan,0,10);
+    public static void scanHowManyFailedTriesMax(int tries) {
+        allowedTries = tries;
+        System.out.println("Number of maximum tries set to: " + tries);
     }
 
-    private static void checkIfGameWonOrLost(Scanner scan) {
-        /*
-        while (true) {
-            String outputWord = generateOutput(triedLetters);
-            System.out.println(outputWord);
-            char triedLetter = scanNextUserCharacter(scan);
-            if (returnTargetWord().indexOf(triedLetter) == -1 && !triedLetters.contains(triedLetter)) {
-                failedTries++;
-                if (failedTries > allowedTries) {
-                    System.out.println("Verloren! Das Wort war " + returnTargetWord() + ".");
-                    askIfContinueGame(scan);
-                    break;
-                }
-            }
-            triedLetters.add(triedLetter);
-            if (allCharactersCorrect(targetCharacters, triedLetters)) {
-                System.out.println("Gewonnen! Du hast nur " + failedTries + " Fehlversuche gebraucht. \n Das Wort war " + returnTargetWord());
-                askIfContinueGame(scan);
-                break;
-            }
+    public void updateGame(char triedLetter) {
+        if (returnTargetWord().indexOf(triedLetter) == -1 && !triedLetters.contains(triedLetter)) {
+            failedTries++;
         }
-        */
+        System.out.println("fails: " + failedTries);
+        System.out.println("tries: " + allowedTries);
+        Log.info(failedTries);
+        triedLetters.add(triedLetter);
+    }
+
+    public static boolean checkIfGameLost() {
+        return failedTries > allowedTries;
     }
 
     private static int calculateScore () {
@@ -136,7 +124,7 @@ public class Hangman {
         }
     }
 
-    private static String returnTargetWord() {
+    public static String returnTargetWord() {
         return wordList[selectedDifficulty][selectedWordIndex];
     }
 
@@ -189,13 +177,13 @@ public class Hangman {
         }
     }
 
-    public String generateOutput(Set<Character> triedLetters) {
+    public String generateOutput() {
         String targetWord = returnTargetWord();
+        System.out.println("Target word:" + targetWord);
         int targetLength = targetWord.length();
         char[] returnCharacters = new char[targetLength];
         String returnString = "";
         Arrays.fill(returnCharacters,'-');
-
         for (int i = 0; i < targetLength; i++) {
             char expectedChar = targetWord.charAt(i);
             if (triedLetters.contains(expectedChar)) {
@@ -206,7 +194,7 @@ public class Hangman {
         return returnString;
     }
 
-    private static boolean allCharactersCorrect(Set<Character> targetCharacters, Set<Character> triedLetters) {
+    public static boolean allCharactersCorrect() {
         return (triedLetters.containsAll(targetCharacters));
     }
 
